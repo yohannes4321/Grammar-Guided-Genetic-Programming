@@ -1,0 +1,12 @@
+ordered-set
+# Data Processing
+pandas
+numpy
+
+# Parsing & Logic (Your Code Dependencies)
+lark
+graphviz
+
+# Trading & Visualization
+backtesting
+bokeh==2.4.3
