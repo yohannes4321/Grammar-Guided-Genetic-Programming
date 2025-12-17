@@ -2,9 +2,11 @@
 
 This project demonstrates a simple grammar-guided evolutionary algorithm (genetic programming) that generates Python trading strategies, evaluates them with `backtesting.py`, and evolves toward higher performance. It also includes minimal examples and unit tests for the grammar and evolutionary pieces.
 
-![System Overview](photo/Screenshot%202025-12-17%20202020.png)
-![Sample Output](photo/Screenshot%202025-12-17%20050549.png)
-![Best Trading Strategy](photo/best_trading_strategy.png)
+## Plotting Derivation Flow
+Visual snapshots of the grammar-driven evolutionary process and outputs:
+- ![System Overview](photo/Screenshot%202025-12-17%20202020.png)
+- ![Sample Output](photo/Screenshot%202025-12-17%20050549.png)
+- ![Best Trading Strategy](photo/best_trading_strategy.png)
 
 ## Project Layout
 - Grammar.py — Lightweight context-free grammar utilities: symbols, derivation trees, parsing via Lark, and random generation of strings from a BNF definition.
