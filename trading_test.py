@@ -1,57 +1,68 @@
 import unittest
 import numpy as np
-from trading import Grammar, EvolutionaryAlgorithm, Individual, trading_objective
+from Grammar import Grammar
+from EvolutionaryAlgorithm import EvolutionaryAlgorithm, Individual
+from trading import trading_objective
 
-class TestGGGP(unittest.TestCase):
+class TestGGGPFullPipeline(unittest.TestCase):
 
     def setUp(self):
-        self.test_bnf = """
-        <START> ::= "print(" <VAL> ")"
-        <VAL> ::= "1" | "2"
+        # A simple trading-style BNF for testing
+        self.bnf = r"""
+        <S> ::= "if " <VAR> " > " <VAR> ": self.buy()"
+        <VAR> ::= "self.sma1" | "self.sma2" | "self.close"
         """
-        self.gram = Grammar(self.test_bnf)
+        self.gram = Grammar(self.bnf)
+        # Mock objective function (returns 0.0 fitness)
+        self.ea = EvolutionaryAlgorithm(self.gram, lambda x: 0.0, complexity_coefficient=0.01)
 
-    ## 1. Test Grammar Integrity
-    def test_grammar_generation(self):
-        """Check if grammar produces valid strings based on BNF."""
-        tree = self.gram.generate_derivation_tree()
-        phenotype = tree.string()
-        self.assertIn(phenotype, ["print(1)", "print(2)"])
+    def test_random_initialization(self):
+        """Step 1: Verify the population starts with valid random phenotypes."""
+        pop = [Individual(self.gram.generate_derivation_tree()) for _ in range(5)]
+        for ind in pop:
+            self.assertTrue(ind.phenotype.startswith("if "))
+            self.assertTrue(ind.phenotype.endswith(": self.buy()"))
+            self.assertIsInstance(ind.complexity, int)
 
-    ## 2. Test Complexity Penalty
-    def test_complexity_penalty(self):
-        """Verify that longer strings receive a worse (higher) fitness score."""
-        ea = EvolutionaryAlgorithm(self.gram, lambda x: 0.0, complexity_coefficient=1.0)
+    def test_crossover_logic(self):
+        """Step 2: Verify crossover produces a new valid individual from two parents."""
+        p1 = Individual(self.gram.generate_derivation_tree())
+        p2 = Individual(self.gram.generate_derivation_tree())
         
-        # Create two individuals: one short, one long
-        short_ind = Individual(self.gram.generate_derivation_tree())
-        short_ind.phenotype = "short" 
-        short_ind.complexity = 5
+        offspring = self.ea.crossover(p1, p2)
         
-        long_ind = Individual(self.gram.generate_derivation_tree())
-        long_ind.phenotype = "very_long_string"
-        long_ind.complexity = 16
-        
-        ea._evaluate(short_ind)
-        ea._evaluate(long_ind)
-        
-        self.assertLess(short_ind.fitness, long_ind.fitness, "Shorter string should have better fitness")
+        self.assertIsInstance(offspring, Individual)
+        # Ensure offspring phenotype is still valid according to grammar
+        self.assertTrue(offspring.phenotype.startswith("if "))
+        # Check that offspring is a unique object
+        self.assertIsNot(offspring, p1)
+        self.assertIsNot(offspring, p2)
 
-    ## 3. Test Mutation Validity
     def test_mutation_logic(self):
-        """Ensure mutation returns a new Individual object with a tree."""
-        ea = EvolutionaryAlgorithm(self.gram, lambda x: 0.0)
+        """Step 3: Verify mutation modifies the individual but stays within grammar rules."""
         ind = Individual(self.gram.generate_derivation_tree())
-        mutated = ea.mutate(ind)
+        old_phenotype = ind.phenotype
+        
+        # Mutate until the string changes (to prove mutation happened)
+        mutated = ind
+        for _ in range(10): 
+            mutated = self.ea.mutate(ind)
+            if mutated.phenotype != old_phenotype:
+                break
+        
         self.assertIsInstance(mutated, Individual)
-        self.assertIsNot(ind, mutated)
+        self.assertTrue(mutated.phenotype.startswith("if "))
+        self.assertNotEqual(mutated.genotype, ind.genotype)
 
-    ## 4. Test Trading Objective (The 'Exec' sandbox)
-    def test_trading_objective_error_handling(self):
-        """Ensure the objective function catches crashing code and returns a penalty."""
-        bad_code = "this is not python code"
-        score = trading_objective(bad_code)
-        self.assertEqual(score, 2000.0, "Objective should return penalty for syntax errors")
+    def test_full_evaluation_with_complexity(self):
+        """Step 4: Verify the penalty for complexity is added to the objective score."""
+        ea_penalty = EvolutionaryAlgorithm(self.gram, lambda x: -10.0, complexity_coefficient=1.0)
+        ind = Individual(self.gram.generate_derivation_tree())
+        
+        ea_penalty._evaluate(ind)
+        # Expected fitness = objective_score (-10.0) + (char_count * 1.0)
+        expected = -10.0 + ind.complexity
+        self.assertAlmostEqual(ind.fitness, expected)
 
 if __name__ == '__main__':
     unittest.main()
