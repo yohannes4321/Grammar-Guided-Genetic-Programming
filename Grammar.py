@@ -5,7 +5,6 @@ import lark as _lark
 from graphviz import Digraph
 from itertools import product as _cartesian_product
 
-# --- Symbols and Nodes ---
 
 class Symbol:
     __slots__ = ("text",)
@@ -23,7 +22,6 @@ class Node:
         self.symbol = symbol
         self.children = []
 
-# --- Derivation Tree ---
 
 class DerivationTree:
     __slots__ = ("grammar", "root_node")
@@ -37,7 +35,7 @@ class DerivationTree:
         return new_nodes
 
     def string(self):
-        """Uses Stack-based DFS to collect leaves from Left to Right."""
+        
         nodes = []
         stack = [self.root_node]
         while stack:
@@ -193,6 +191,8 @@ def _calc_lark_components(grammar, parser_type):
     nt_map_rev = {f"nt{i}": nt for i, nt in enumerate(grammar.nonterminal_symbols)}
     
     lark_rules = []
+    lark_rules.append("%import common.WS")
+    lark_rules.append("%ignore WS")
     for lhs, rhs_list in grammar.production_rules.items():
         alts = []
         for rhs in rhs_list:
@@ -244,15 +244,25 @@ if __name__ == "__main__":
     print("Parenthesis:", tree.to_parenthesis())
     
     # 2. Parsing Example
+   
     num_bnf = """
-    <number> ::= <digit> . <digit> <digit>
-    <digit>  ::= 0 | 1 | 2 | 3 | 4 | 5
+    <sentence> ::= <nounphrase> <verbphrase>
+
+    <nounphrase> ::= <det> <noun>
+
+    <verbphrase> ::= <verb> <nounphrase>
+                | <verb>
+
+    <det> ::= "the" | "a"
+    <noun> ::= "cat" | "dog"
+    <verb> ::= "sees" | "likes"
     """
+
     num_gram = Grammar(num_bnf)
-    parsed = num_gram.parse_string("3.14")
+    parsed = num_gram.parse_string("thecatseesadog")
     
     print("\n--- Parsed Tree ---")
     print("String:", parsed.string())
     
     # Visualisation (uncomment if you have Graphviz installed)
-    # parsed.plot().render("parsed_output", format="png", cleanup=True)
+    parsed.plot().render("parsed_output", format="png", cleanup=True)

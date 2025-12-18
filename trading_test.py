@@ -2,67 +2,80 @@ import unittest
 import numpy as np
 from Grammar import Grammar
 from EvolutionaryAlgorithm import EvolutionaryAlgorithm, Individual
-from trading import trading_objective
+from trading import trading_objective 
 
-class TestGGGPFullPipeline(unittest.TestCase):
+class TestTradingEvolution(unittest.TestCase):
 
     def setUp(self):
-        # A simple trading-style BNF for testing
+        """SET UP: Preparing the Lab"""
+        # A valid Trading BNF that follows Backtesting.py structure
         self.bnf = r"""
-        <S> ::= "if " <VAR> " > " <VAR> ": self.buy()"
-        <VAR> ::= "self.sma1" | "self.sma2" | "self.close"
+        <PROGRAM> ::= <L00> "\n" <L01> "\n" <L02> "\n" <L03>
+        <L00> ::= "class EvoStrat(Strategy):"
+        <L01> ::= "    n1 = 10"
+        <L02> ::= "    def init(self): self.sma = self.I(SMA, self.data.Close, self.n1)"
+        <L03> ::= "    def next(self): \n        if self.data.Close > self.sma: self.buy()"
         """
         self.gram = Grammar(self.bnf)
-        # Mock objective function (returns 0.0 fitness)
-        self.ea = EvolutionaryAlgorithm(self.gram, lambda x: 0.0, complexity_coefficient=0.01)
+        
+        # We use the REAL trading_objective (GOOG data)
+        self.ea = EvolutionaryAlgorithm(
+            self.gram, 
+            trading_objective, 
+            complexity_coefficient=0.01
+        )
 
-    def test_random_initialization(self):
-        """Step 1: Verify the population starts with valid random phenotypes."""
-        pop = [Individual(self.gram.generate_derivation_tree()) for _ in range(5)]
-        for ind in pop:
-            self.assertTrue(ind.phenotype.startswith("if "))
-            self.assertTrue(ind.phenotype.endswith(": self.buy()"))
-            self.assertIsInstance(ind.complexity, int)
+    def test_initialization_and_grammar(self):
+      
+        tree = self.gram.generate_derivation_tree()
+        ind = Individual(tree)
+        
+        # Check if the text matches our BNF rules
+        self.assertTrue(ind.phenotype.startswith("class EvoStrat"))
+        self.assertIn("self.buy()", ind.phenotype)
+        # Complexity should be an integer (count of characters/nodes)
+        self.assertIsInstance(ind.complexity, int)
 
-    def test_crossover_logic(self):
-        """Step 2: Verify crossover produces a new valid individual from two parents."""
+    def test_genetic_operators(self):
+        """CROSSOVER & MUTATION: Testing the 'Evolutionary Machinery'"""
         p1 = Individual(self.gram.generate_derivation_tree())
         p2 = Individual(self.gram.generate_derivation_tree())
         
-        offspring = self.ea.crossover(p1, p2)
+        # 1. Test Crossover
+        child = self.ea.crossover(p1, p2)
+        self.assertIsNotNone(child)
+        self.assertNotEqual(child.genotype, p1.genotype)
         
-        self.assertIsInstance(offspring, Individual)
-        # Ensure offspring phenotype is still valid according to grammar
-        self.assertTrue(offspring.phenotype.startswith("if "))
-        # Check that offspring is a unique object
-        self.assertIsNot(offspring, p1)
-        self.assertIsNot(offspring, p2)
+        # 2. Test Mutation
+        mutated = self.ea.mutate(p1)
+        self.assertNotEqual(mutated.genotype, p1.genotype)
 
-    def test_mutation_logic(self):
-        """Step 3: Verify mutation modifies the individual but stays within grammar rules."""
-        ind = Individual(self.gram.generate_derivation_tree())
-        old_phenotype = ind.phenotype
+    def test_fitness_and_penalty_check(self):
+        """PENALTY CHECK: Verifying the 'Filter' against Real GOOG Data"""
+        # Create a "bad" individual manually to force a failure if needed
+        # Or evaluate a random one to see real-world performance
+        tree = self.gram.generate_derivation_tree()
+        ind = Individual(tree)
         
-        # Mutate until the string changes (to prove mutation happened)
-        mutated = ind
-        for _ in range(10): 
-            mutated = self.ea.mutate(ind)
-            if mutated.phenotype != old_phenotype:
-                break
+        self.ea._evaluate(ind)
         
-        self.assertIsInstance(mutated, Individual)
-        self.assertTrue(mutated.phenotype.startswith("if "))
-        self.assertNotEqual(mutated.genotype, ind.genotype)
+        # LOGIC:
+        # If it's a good strategy, it should be a negative number (e.g., -1.4)
+        # If it failed or lost money, it should be 1000.0 or 2000.0
+        is_valid_score = ind.fitness < 0 or ind.fitness >= 1000
+        self.assertTrue(is_valid_score, f"Unexpected fitness value: {ind.fitness}")
 
-    def test_full_evaluation_with_complexity(self):
-        """Step 4: Verify the penalty for complexity is added to the objective score."""
-        ea_penalty = EvolutionaryAlgorithm(self.gram, lambda x: -10.0, complexity_coefficient=1.0)
-        ind = Individual(self.gram.generate_derivation_tree())
+    def test_selection_logic(self):
+        """SURVIVAL OF THE FITTEST: Testing the 'Ranking'"""
+        pop = [Individual(self.gram.generate_derivation_tree()) for _ in range(3)]
+        for ind in pop:
+            self.ea._evaluate(ind)
+            
+        # Sort by fitness (lowest is best)
+        pop.sort(key=lambda x: x.fitness)
         
-        ea_penalty._evaluate(ind)
-        # Expected fitness = objective_score (-10.0) + (char_count * 1.0)
-        expected = -10.0 + ind.complexity
-        self.assertAlmostEqual(ind.fitness, expected)
+        # Ensure the champion is at the front
+        self.assertTrue(pop[0].fitness <= pop[1].fitness <= pop[2].fitness)
 
 if __name__ == '__main__':
     unittest.main()

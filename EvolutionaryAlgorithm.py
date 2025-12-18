@@ -17,7 +17,7 @@ class EvolutionaryAlgorithm:
         self.population = []
 
     def _evaluate(self, individual):
-        """Calculates fitness: raw score + penalty for code length."""
+        
         raw_score = self.obj_func(individual.phenotype)
         penalty = individual.complexity * self.penalty_coeff
         individual.fitness = raw_score + penalty
@@ -46,11 +46,11 @@ class EvolutionaryAlgorithm:
             if compatible_targets:
                 n2 = random.choice(compatible_targets)
                 
-                # Perform the swap of children (subtrees)
+                
                 n1.children, n2.children = n2.children, n1.children
                 return Individual(tree1)
 
-        # If no compatibility found, fallback to mutation
+    
         return self.mutate(parent1)
 
     def mutate(self, individual):

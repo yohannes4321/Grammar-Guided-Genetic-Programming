@@ -7,7 +7,7 @@ import numpy as np
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 from backtesting.test import SMA, GOOG
-
+# Risk-Adjusted Returns
 # Importing your custom logic from your files
 from Grammar import Grammar
 from EvolutionaryAlgorithm import EvolutionaryAlgorithm, Individual
